@@ -1,0 +1,54 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+""" Import a BrewPi CSV export into influxdb
+
+"""
+import argparse
+import os
+
+from brewmon.brewmon import BrewMon, DEFAULT_TCP_PORT
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Import BrewPi beer in CSV format to InfluxDB")
+    parser.add_argument('--host', type=str, required=False,
+                        default='localhost',
+                        help='InfluxDB http API hostname')
+    parser.add_argument('--port', type=int, required=False, default=DEFAULT_TCP_PORT,
+                        help='InfluxDB http API port')
+    parser.add_argument('--database', type=str, required=False,
+                        default='brewpi',
+                        help='InfluxDB database name')
+    parser.add_argument("--beer-name", required=False, help="beer name to use instead of the CSV filename")
+    parser.add_argument('--udp', action='store_true', help="Use UDP protocol instead of TCP")
+    parser.add_argument('--verbose', action='store_true')
+    parser.add_argument("CSV_FILE")
+    return parser.parse_args()
+
+
+def import_file(brewmon, file_path, beer_name):
+    print("# Importing beer '" + beer_name + "' from file: '" + file_path + "'")
+    date_start = None
+    date_end = None
+    count = 0
+    with open(file_path) as csvfile:
+        for line in csvfile:
+            row = line.split(';')
+            if date_start is None:
+                date_start = row[0]
+            date_end = row[0]
+            brewmon.publish_row(beer_name, row)
+            count += 1
+    print("# " + str(count) + " rows imported from: " + date_start + " to " + date_end)
+
+
+def main():
+    args = parse_args()
+    if args.beer_name is None:
+        args.beer_name = os.path.splitext(os.path.basename(args.CSV_FILE))[0]
+    brewmon = BrewMon(host=args.host, port=args.port, udp=args.udp, verbose=args.verbose)
+    import_file(brewmon, args.CSV_FILE, args.beer_name)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,13 @@
+syntax:glob
+
+dist
+build
+doc/*.html
+*.pyc
+*.swp
+.#*
+*~
+venv
+.idea
+*.iml
+*.egg-info

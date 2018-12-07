@@ -22,18 +22,30 @@ The fermentation metrics are coming from multiple sources, the first target is t
 
 This project is under active development.
 
+## Screenshots
+
+Here are first screenshots of the BrewMon dashboard just few minute after soldering the iSpindel the device is not yet calibrated
+and outside of the fermenter so don't expect valuable metrics on this first try.
+
+![brewmon screenshot 1](./data/brewmon-screenshot1.gif)
+![brewmon screenshot 1](./data/brewmon-screenshot2.gif)
+
+https://snapshot.raintank.io/dashboard/snapshot/Klzhv0csYbH4S39miAYi9Mi2H0yG4ERA
+
+  
+
 ## Architecture
 
 The solution relies on [Grafana](https://grafana.com/) for the dashboard and [InfluxDB](https://www.influxdata.com/time-series-platform/influxdb/) as metric storage. 
 
-BrewPi need to be patched to be able to report metrics to InfluxDB.
+BrewPi needs to be patched to be able to report metrics to InfluxDB.
 
-iSpindel need to be configured to report its metrics to InfluxDB (supported since firmware 5.x). 
+iSpindel needs to be configured to report its metrics to InfluxDB (supported since firmware 5.x). 
 
 BrewMon provides an importer to inject existing BrewPi beer in CSV format.
 
 
-### Rationals 
+### Rationales
 
 Grafana and InfluxDB are light enough to run on the same RaspberryPi (RPI) used by BrewPi.
 
@@ -48,7 +60,7 @@ The storage is based on InfluxDB because:
 
 InfluxDB can also be used for other metrics during mashing when using CraftBeer or simply to monitor the RPI OS.
 
-BrewPi need to be patched to add the InfluxDB support but the change should never block BrewPi,
+BrewPi needs to be patched to add the InfluxDB support but the change should never block BrewPi,
 for this reason the metrics are exported continuously using UDP.
 
 ## Installation
@@ -65,6 +77,13 @@ $ bm-install
 ```
 
 After this the Grafana and InfluxDB are automatically started and configured.
+
+To receive the metrics in real time a file in BrewPi need to be patched, here is the change for the legacy version of BrewPi:
+https://github.com/bdelbosc/brewpi-script/commit/8ae692e60f6f82d8658f774eef8406525d1b87c9
+
+The default location for this file is:
+/home/brewpi/brewpi.py
+
 
 ### On amd64 architecture
 
@@ -88,7 +107,7 @@ docker-compose up -d
 
 Grafana starts with a provisioned InfluxDB source and BrewMon dashboard.
 
-Grafana is accessible on port 3000 of your BrewPi [http://localhost:3000/](http://localhost:3000/) 
+Grafana is accessible on port 3000 of your BrewPi [http://brewpi:3000/](http://brewpi:3000/) 
 the initial login / passord is admin/admin.
 
 
@@ -107,6 +126,13 @@ bm-import --beer-name Kolsh ./data/Kolsch2.csv
 # For more options
 bm-import --help
 ```
+
+## Limitations
+
+For now only tested on:
+- Raspberry Pi 3B+
+- BrewPi legacy version deployed on Raspian 9.6, to do this it requires [some minor change to run with PHP7](https://github.com/BrewPi/brewpi-www/compare/legacy...bdelbosc:legacy?expand=1).
+- iSpindel 6.0.2 
 
 ## Development
 
