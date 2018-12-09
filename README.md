@@ -2,11 +2,11 @@
 
 ## About
 
-BrewMon aims to provide a customizable monitoring dashboard for beer fermentation.
+BrewMon provides a customisable dashboard for beer fermentation with alerting support.
 
 The fermentation metrics are coming from multiple sources, the first target is to support:
 
-- [BrewPI](https://www.brewpi.com/) a fermentation temperature controller that reports:
+- [BrewPI](https://www.brewpi.com/) a great fermentation temperature controller that reports:
   - the wort (aka beer) temperature
   - the fermentation chamber (aka fridge) temperature
   - the room temperature
@@ -15,75 +15,53 @@ The fermentation metrics are coming from multiple sources, the first target is t
   - the state of the controller: cooling, heating, idling ...
   - Annotations when changing the beer setting or profile  
 
-- [iSpindel](http://www.ispindel.de/) an hydrometer that reports:
+- [iSpindel](http://www.ispindel.de/) an amazing hydrometer that reports:
   - the wort gravity
   - the temperature of the wort
   - its battery level
 
 This project is under active development.
 
-## Screenshots
+## First screenshots
 
-Here are first screenshots of the BrewMon dashboard just few minute after soldering the iSpindel the device is not yet calibrated
-and outside of the fermenter so don't expect valuable metrics on this first try.
+Here the first screenshots of the BrewMon dashboard just few minute after soldering the iSpindel (the device is not yet calibrated
+nor in the fermenter).
 
-![brewmon screenshot 1](./data/brewmon-screenshot1.gif)
-![brewmon screenshot 1](./data/brewmon-screenshot2.gif)
+![brewmon screenshot 1](data/brewmon-screenshot1.gif)
+
+![brewmon screenshot 2](data/brewmon-screenshot2.gif)
+
+![brewmon screenshot 3](data/brewmon-screenshot3.gif)
+
+An example of dashboard snapshot:
 
 https://snapshot.raintank.io/dashboard/snapshot/Klzhv0csYbH4S39miAYi9Mi2H0yG4ERA
 
-  
 
 ## Architecture
 
 The solution relies on [Grafana](https://grafana.com/) for the dashboard and [InfluxDB](https://www.influxdata.com/time-series-platform/influxdb/) as metric storage. 
 
-BrewPi needs to be patched to be able to report metrics to InfluxDB.
+BrewPi is patched to report metrics to InfluxDB in real time.
 
-iSpindel needs to be configured to report its metrics to InfluxDB (supported since firmware 5.x). 
+iSpindel is configured to report metrics to InfluxDB (supported since firmware 5.x). 
 
-BrewMon provides an importer to inject existing BrewPi beer in CSV format.
+BrewMon provides a script to import existing BrewPi beer (from CSV format).
 
-
-### Rationales
-
-Grafana and InfluxDB are light enough to run on the same RaspberryPi (RPI) used by BrewPi.
-
-Grafana offers customisable dashboard with alerting capabilities, a dashboard and its content can be easily shared using [public snapshot](http://snapshot.raintank.io/info/) 
- 
-The storage is based on InfluxDB because:
-- it is supported by iSpindel (not like Graphite)
-- it is able to import existing data (not like Prometheus)
-- it has an infinite retention by default (not like Graphite/Prometheus) 
-- it supports the UDP protocol
-- it has a very small resource footprint
-
-InfluxDB can also be used for other metrics during mashing when using CraftBeer or simply to monitor the RPI OS.
-
-BrewPi needs to be patched to add the InfluxDB support but the change should never block BrewPi,
-for this reason the metrics are exported continuously using UDP.
 
 ## Installation
 
 ### On RaspberryPi
 
-At the moment the install relies on Debian packages instead of docker because there is no recent Grafana image that work on RaspberryPi (armhf architecture).
-
+One line installation on the Raspberry Pi running BrewPi in legacy version:
 ```bash
-# install the python brewmon package
-$ sudo pip install --no-binary :all: /tmp/brewmon-0.1.zip
-# Run the installer 
-$ bm-install
+bash <(curl -Ss https://raw.githubusercontent.com/bdelbosc/brewmon/master/scripts/bm-install.sh)
 ```
 
-After this the Grafana and InfluxDB are automatically started and configured.
-
-To receive the metrics in real time a file in BrewPi need to be patched, here is the change for the legacy version of BrewPi:
-https://github.com/bdelbosc/brewpi-script/commit/8ae692e60f6f82d8658f774eef8406525d1b87c9
-
-The default location for this file is:
-/home/brewpi/brewpi.py
-
+This script will:
+- install Debian packages for InfluxDB and Grafana, along with the BrewMon dashboard
+- install the brewmon python package
+- patch BrewPi script to report metrics into InfluxDB
 
 ### On amd64 architecture
 
@@ -103,25 +81,26 @@ docker-compose up -d
 
 ## Usage
 
-### Grafana
+### Grafana dashboard
 
 Grafana starts with a provisioned InfluxDB source and BrewMon dashboard.
 
 Grafana is accessible on port 3000 of your BrewPi [http://brewpi:3000/](http://brewpi:3000/) 
 the initial login / passord is admin/admin.
 
+The provisioned dashboard is named "BrewMon Template" and is read only, you need to create a copy if you want to change it.
 
-The provisioned dashboard is named "BrewMon Template" and is read only, you need to create a copy if you want to change it. 
+Visit the [Getting started documentation](http://docs.grafana.org/guides/getting_started/) to learn more about Grafana. 
 
 ### Import existing BrewPi metrics
 
-BrewPi is saving its metrics into CSV files in `/var/www/html/data/`. There is a folder per beer with a CSV file containg all the BrewPi metrics.
+BrewPi saves beer metrics into CSV files under `/var/www/html/data/`.
 
-To import such file into InfluxDB and therefore 
+To import a CSV file into InfluxDB use the `bm-import` script: 
 
 ```bash
 # Import file into local influxdb http://localhost:8086/brewpi
-bm-import --beer-name Kolsh ./data/Kolsch2.csv
+bm-import /var/www/html/data/Kolsch/Kolsch.csv
 
 # For more options
 bm-import --help
@@ -129,16 +108,36 @@ bm-import --help
 
 ## Limitations
 
-For now only tested on:
+For now BrewMon is only tested on:
 - Raspberry Pi 3B+
-- BrewPi legacy version deployed on Raspian 9.6, to do this it requires [some minor change to run with PHP7](https://github.com/BrewPi/brewpi-www/compare/legacy...bdelbosc:legacy?expand=1).
-- iSpindel 6.0.2 
+- Raspian 9.6
+- BrewPi legacy version, note that BrewPi need a [minor change to run on recent Raspian/PHP7](https://github.com/BrewPi/brewpi-www/compare/legacy...bdelbosc:legacy?expand=1).    
+- iSpindel 6.0.2
 
 ## Development
 
+### Rationales
+
+Grafana and InfluxDB are light enough to run on the same RaspberryPi (RPI) used by BrewPi.
+
+Grafana offers customisable dashboard with alerting capabilities, a dashboard and its content can be easily shared using [raintank.io](http://snapshot.raintank.io/info/) 
+ 
+The storage is based on InfluxDB because:
+- it is supported by iSpindel (not like Graphite)
+- it is able to import existing data (not like Prometheus)
+- it has an infinite retention by default (not like Graphite/Prometheus) 
+- it supports the UDP protocol
+- it has a very small resource footprint
+
+InfluxDB can also be used for other metrics during mashing when using CraftBeer or simply to monitor the RPI OS.
+
+BrewPi needs to be patched without creating any regression, for this reason the metrics are exported continuously using UDP.
+
+Installation on Raspberry Pi relies on Debian package because at the moment there is no Grafana docker image for armhf.
+
 ### InfluxDB storage
 
-The default database is named `brewmon` and there is one series per beer.
+The default database is named `brewmon` and there is one series per BrewPi beer and one series for iSpindel.
 
 All date are stored in UTC, Grafana will manage your timezone.
  
@@ -159,7 +158,8 @@ From there you can access the metrics:
 key
 ---
 Kolsch,beer_name=Kolsch
- 
+measurements,source=iSpindel000
+
 -- Show BrewPi annotation for a beer
 > SELECT title FROM "Kolsch"
 name: Kolsch
@@ -186,17 +186,16 @@ time                beer_temp
 > INSERT Kolsch,beer_name=Kolsch title="Some annotation" 1544007690000000000
 
 -- Query the iSpindel data
-> SELECT * FROM "measurements" WHERE time >= now() - 1h LIMIT 1
+> SELECT * FROM "measurements" WHERE time >= now() - 5m
 name: measurements
 time                           RSSI battery  gravity   interval source      temp_units temperature tilt
 ----                           ---- -------  -------   -------- ------      ---------- ----------- ----
 2018-12-07T14:55:55.159109731Z -70  3.592284 2.844413  120      iSpindel000 C          20.4375     30.86859
 
 
--- Delete all points related to a beer
+-- Delete metrics related to a beer
 DROP SERIES FROM "Kolsch"
 ```
-
 
 ## License
 
