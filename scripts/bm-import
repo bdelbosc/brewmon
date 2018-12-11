@@ -21,12 +21,14 @@ def parse_args():
                         help='InfluxDB database name')
     parser.add_argument("--beer-name", required=False, help="beer name to use instead of the CSV filename")
     parser.add_argument('--udp', action='store_true', help="Use UDP protocol instead of TCP")
+    parser.add_argument('--ispindel', action='store_true', help="The CSV file is an iSpindel export")
     parser.add_argument('--verbose', action='store_true')
+
     parser.add_argument("CSV_FILE")
     return parser.parse_args()
 
 
-def import_file(brewmon, file_path, beer_name):
+def import_beer_file(brewmon, file_path, beer_name):
     print("# Importing beer '" + beer_name + "' from file: '" + file_path + "'")
     date_start = None
     date_end = None
@@ -37,17 +39,38 @@ def import_file(brewmon, file_path, beer_name):
             if date_start is None:
                 date_start = row[0]
             date_end = row[0]
-            brewmon.publish_row(beer_name, row)
+            brewmon.add_beer_row(beer_name, row)
             count += 1
+    brewmon.flush()
     print("# " + str(count) + " rows imported from: " + date_start + " to " + date_end)
+
+
+def import_ispindel_file(brewmon, file_path):
+    print("# Importing iSpindel from file: '" + file_path + "'")
+    count = 0
+    with open(file_path) as csvfile:
+        for line in csvfile:
+            row = line.split(',')
+            if row[0] == "name":
+                # skip header
+                continue
+            brewmon.add_ispindel_row(row)
+            count += 1
+    brewmon.flush()
+    print("# " + str(count) + " rows imported")
 
 
 def main():
     args = parse_args()
     if args.beer_name is None:
         args.beer_name = os.path.splitext(os.path.basename(args.CSV_FILE))[0]
-    brewmon = BrewMon(host=args.host, port=args.port, udp=args.udp, verbose=args.verbose)
-    import_file(brewmon, args.CSV_FILE, args.beer_name)
+
+    if args.ispindel:
+        brewmon = BrewMon(host=args.host, port=args.port, udp=args.udp, verbose=args.verbose, time_precision="n")
+        import_ispindel_file(brewmon, args.CSV_FILE)
+    else:
+        brewmon = BrewMon(host=args.host, port=args.port, udp=args.udp, verbose=args.verbose)
+        import_beer_file(brewmon, args.CSV_FILE, args.beer_name)
 
 
 if __name__ == "__main__":

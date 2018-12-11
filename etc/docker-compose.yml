@@ -1,5 +1,6 @@
 version: '2'
 services:
+
   influxdb:
     image: influxdb:latest
     container_name: influxdb
@@ -20,6 +21,7 @@ services:
     - influxdb
     environment:
     - GF_SECURITY_ADMIN_PASSWORD=admin
+    - GF_INSTALL_PLUGINS=ryantxu-ajax-panel
     volumes:
     - ./grafana/provisioning/:/etc/grafana/provisioning/
     #- /data/grafana:/var/lib/grafana
