@@ -2,98 +2,147 @@
 
 ## About
 
-BrewMon provides a customisable dashboard for beer fermentation with alerting support.
+BrewMon is a solution for monitoring beer fermentation.
 
-The fermentation metrics are coming from multiple sources, the first target is to support:
+Because fermentation metrics come from different equipments there is a need to build a customizable dashboard
+to follow the fermentation and be alerted in case of problem.
 
-- [BrewPI](https://www.brewpi.com/) a great fermentation temperature controller that reports:
-  - the wort (aka beer) temperature
-  - the fermentation chamber (aka fridge) temperature
-  - the room temperature
-  - the beer setting temperature: the target temperature chosen by the brew master
-  - the fridge setting temperature: the target temperature chosen by BrewPi to reach the beer setting
-  - the state of the controller: cooling, heating, idling ...
-  - Annotations when changing the beer setting or profile  
+The first target is to support the following equipments:
 
-- [iSpindel](http://www.ispindel.de/) an amazing hydrometer that reports:
-  - the wort gravity
-  - the temperature of the wort
-  - the battery level
+- [BrewPI](https://www.brewpi.com/) a great temperature controller that can control the beer fermentation with 0.1°C precision.
+
+  ![BrewPi](./brewpi.gif)
+
+- [iSpindel](http://www.ispindel.de/) an amazing DIY electronic hydrometer to get the wort gravity in real time.
+
+  ![iSpindel](./ispindel.gif)
+
 
 This project is under active development.
 
 ## First screenshots
 
-Here the first screenshots of the BrewMon dashboard just few minutes after soldering the iSpindel (the device is not yet calibrated
-nor in the fermenter).
+Here are the first screenshots of the BrewMon dashboard,  
+the iSpindel is not yet calibrated nor in the fermentation bucket.
 
-![brewmon screenshot 1](data/brewmon-screenshot1.gif)
+[![main screenshot](./brewmon-main.gif)](https://snapshot.raintank.io/dashboard/snapshot/xhw7C5p3SICux4A9Nklx6Aq4HTVjSGgM?orgId=2)
 
-![brewmon screenshot 2](data/brewmon-screenshot2.gif)
+![ispindel metrics](./brewmon-ispindel.gif)
 
-![brewmon screenshot 3](data/brewmon-screenshot3.gif)
-
-An example of dashboard snapshot:
-
-https://snapshot.raintank.io/dashboard/snapshot/Klzhv0csYbH4S39miAYi9Mi2H0yG4ERA
+[![detail temp](./brewmon-detail.gif)](https://snapshot.raintank.io/dashboard/snapshot/1BR7lho8CFTyNc5RSOLy8m71b33kjfmc?orgId=2)
 
 
-## Architecture
+## How does it work ?
 
-The solution relies on [Grafana](https://grafana.com/) which offers customisable dashboards, annotations and alerting.
+The solution relies on [Grafana](https://grafana.com/) which is a monitoring and alerting platform with customisable dashboards and annotations.
 
-The metrics are stored in an [InfluxDB](https://www.influxdata.com/time-series-platform/influxdb/) database.
+The metrics are stored in [InfluxDB](https://www.influxdata.com/time-series-platform/influxdb/), a time series database.
 
-BrewPi is patched to report metrics to InfluxDB in real time.
-
-BrewMon provides a `bm-import` script to import existing BrewPi beer in CSV format into InfluxDB.
+BrewPi is slightly modified to send its metrics to InfluxDB and extended to be able to import existing one.
 
 iSpindel is configured to report metrics to InfluxDB.
 
+The stack (BrewPi + InfluxDB + Grafana) is running on the Raspberry Pi using [docker-compose](https://docs.docker.com/compose/overview/).
 
 ## Installation
 
 ### On RaspberryPi
 
-One line installation on the Raspberry Pi running BrewPi in legacy version:
+#### Install Raspbian Stretch Lite
+  Follow the [BrewPi Guide](https://wiki.brewpi.com/getting-started/raspberry-pi-docker-install#install-raspbian)
+  up to the ssh access.
+   
+  Rename the host from `raspberrypi` to `brewpi` by editing `/etc/hostname` and `/etc/hosts`, then restart.
+
+#### Install the BrewMon stack
+
+- ssh to the Raspberry Pi then:
 ```bash
-bash <(curl -Ss https://raw.githubusercontent.com/bdelbosc/brewmon/master/scripts/bm-install.sh)
+bash <(curl -Ss https://raw.githubusercontent.com/bdelbosc/brewmon/master/bm-install.sh)
 ```
 
-This script will:
-- install Debian packages for InfluxDB and Grafana, along with the BrewMon dashboard
-- install the brewmon python package
-- patch BrewPi script to report metrics into InfluxDB
+This one line installer will :
+- install docker
+- install docker-compose
+- build docker images: influxdb, grafana, brewpi (it takes ~15 minutes)
+- start the stack as a service named `brewmon`
+- provision a "BrewMon Template" dashboard
 
-### On amd64 architecture
 
-Install [docker compose](https://docs.docker.com/compose/):
+The default docker volume that contains all the data is:
+- `/home/pi/brewpi`
 ```bash
-sudo -s
+pi@brewpi:/home/pi/brewpi
+  ├── data # the BrewPi data
+  │   ├── data
+  │   ├── html_data
+  │   ├── logs
+  │   └── settings
+  ├── grafana
+  └── influxdb
+```
+
+You can configure the USB device and volume location by editing the [`.env`](https://github.com/bdelbosc/brewpi-docker/blob/legacy/raspbian/.env) file
+
+
+### On x86_64 architecture
+
+The stack can be also deployed on a normal x86_64 architecture.
+
+First install [docker and docker-compose](https://docs.docker.com/compose/):
+```bash
 curl -fsSL get.docker.com -o get-docker.sh && sh get-docker.sh
 pip install docker-compose
 ```
 
-Then:
+Then checkout the docker compose files: 
+```bash
+git clone https://github.com/bdelbosc/brewpi-con.git
 ```
-git clone https://github.com/bdelbosc/brewmon.git
-cd brewmon/etc
+
+Build docker images:
+```bash
+cd brewpi-docker/ubuntu
+docker-compose build
+```
+
+Run docker compose
+```bash
 docker-compose up -d
 ```
 
 ### Configuring iSpindel
 
 Follow the iSpindel configuration:
-- Connect the iSpindel to a computer and install the latest firmware (>= 5.8.5)
-- Press the Wemos button and connect to the iSpindel AP
+- Connect the iSpindel to a computer and install the latest firmware (InfluxDB is supported since version 5.8.5)
+- Press the Wemos reset button and connect to the iSpindel AP
 - Configure your Wifi access
 - Select the InfluxDB reporting
   - use the BrewPi IP (or the IP where InfluxDB is installed) and the port 8086
   - use `brewmon` database
 
-See below to check if you have data in InfluxDB coming from the iSpindel.
+TODO: Add some screenshot
 
 ## Usage
+
+### Stop / Start stack
+
+The stack can be start and stop using systemd:
+```bash
+sudo systemctl status brewmon.service
+sudo systemctl stop brewmon.service
+sudo systemctl start brewmon.service
+```
+
+### BrewPi
+
+BrewPi should work exactly as expected in the **legacy** version, the default deployment use `nginx` configured 
+with basic authentication, you can login using the `brewpi` account with the default `brewpi` password.
+
+In the log `pi@brewpi:/home/pi/brewpi/data/logs/stderr.txt` you should have a message like:
+```bash
+ Dec 18 2018 18:03:26   Publish metrics to InfluxDB influxdb:4444/brewmon UDP
+```
 
 ### Grafana dashboard
 
@@ -111,42 +160,60 @@ Visit the [Getting started documentation](http://docs.grafana.org/guides/getting
 
 ### Import existing BrewPi beer metrics
 
-BrewPi saves beer metrics into CSV files under `/var/www/html/data/`.
+BrewPi enable to export existing metrics "Maintenance Panel" > "Previous Beers" > "Select beer" > "Download CSV" 
 
-To import a CSV file into InfluxDB use the `bm-import` script: 
+This file can be imported into InfluxDB with the `bm-import.py` script present on the BrewPi container:
 
 ```bash
-# Import file into local influxdb http://localhost:8086/brewpi
-bm-import /var/www/html/data/Kolsch/Kolsch.csv
-# Importing beer 'Kolsch' from file: '/var/www/html/data/Kolsch/Kolsch.csv'
-# 6869 rows imported from: Dec 02 2018 15:51:15 to Dec 11 2018 17:35:37
-
+# Copy the CSV file to the RPI:
+scp MyBeer.csv brewpi:/tmp/
+# ssh to the RPI
+ssh brewpi
+# copy the file to a volume accessible by brewpi
+sudo mv /tmp/MyBeer.csv /home/pi/brewpi/data/
+# Import the file
+sudo docker exec brewpi /home/brewpi/bm-import.py /data/MyBeer.csv
+# Importing beer 'MyBeer' from file: '/data/MyBeer.csv'
+# 9161 rows imported from: Dec 02 2018 15:51:15 to Dec 14 2018 19:13:36
 # For more options
-bm-import --help
+sudo docker exec brewpi /home/brewpi/bm-import.py --help
 ```
+
+You may need to enter explicitly the name of the beer in the dashboard if it is not already presented.
+(Or go to Settings > Variables > $beer_name > Update this will refresh the available variable )
 
 ### Export/Import iSpindel metrics
 
 You can export the iSpindel metrics stored in InfluxDB as a CSV file.
 
-This can be done from the BrewPi (or the InfluxDB container): 
+This can be done from InfluxDB container:
 ```bash
- influx -database 'brewmon' -execute 'SELECT * FROM "measurements"' -format 'csv' > /tmp/spindel.csv
+sudo docker exec influxdb influx -database 'brewmon' -execute 'SELECT * FROM "measurements"' -format 'csv' > /tmp/spindel.csv
 ```
 
-This CSV file can be also imported into InfluxDB using `bm-import`:
+This CSV file can be copied to a volume of the brewpi container and imported into InfluxDB using `bm-import.py`:
 ```bash
-bm-import --ispindel /tmp/ispindel.csv
+sudo cp /tmp/ispindel.csv /home/pi/brewpi/data/
+sudo docker exec brewpi /home/brewpi/bm-import.py --ispindel /data/ispindel.csv
 # Importing iSpindel from file: '/tmp/ispindel.csv'
 # 2918 rows imported
 ```
 
+### Grafana alerting
+
+TODO: configure few alerts:
+  - abs(beer_temp - beer_setting_temp) > 1
+  - abs(fridge_temp - fridge_setting_temp) > 2
+  - fridge_temp > 30
+  - gravity < (Estimated FG + 4)
+  - battery < 3.4V
+  - no gravity update > 5m
 
 ## Limitations
 
 For now BrewMon is only tested on:
 - Raspberry Pi 3B+
-- Raspian 9.6
+- Raspbian 9.6
 - BrewPi legacy version    
 - iSpindel Firmware 6.0.2
 
@@ -155,7 +222,8 @@ Known limitations of Grafana (v5.4):
 - [Mobile support is a bit limited](https://github.com/grafana/grafana/issues/8799)
 - Snapshot
   - does not include annotations
-  - can be exported as file using REST but the [import API does not exists](https://github.com/grafana/grafana/issues/10401).
+  - can be exported as file using the REST API but not from the UI
+  - can be imported to raintank.io but [not on another instance](https://github.com/grafana/grafana/issues/10401).
 
 
 ## Development
@@ -176,7 +244,6 @@ InfluxDB can also be used for other metrics during mashing when using CraftBeer 
 
 BrewPi needs to be patched without creating any regression, for this reason the metrics are exported continuously using UDP.
 
-Installation on Raspberry Pi relies on Debian package because at the moment there is no Grafana docker image for `armhf` architecture.
 
 ### InfluxDB database
 
@@ -186,13 +253,7 @@ All date are stored in UTC, Grafana will manage your timezone.
  
 From the RaspberryPi you can run [`influx`](https://docs.influxdata.com/influxdb/v1.7/tools/shell/) to get an interpreter:
 ```bash
-ssh brewpi
-influx
-```
-On docker just run
-
-```bash
-docker exec -it influxdb /usr/bin/influx
+sudo docker exec -it influxdb influx
 ```
 
 From there you can access the metrics:
